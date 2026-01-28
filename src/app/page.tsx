@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { loadProfiles as loadProfilesFromStorage, saveProfile as saveProfileToStorage, updateProfile as updateProfileToStorage, subscribeToProfiles } from '@/lib/storage';
 import { Profile, Achievement, TopAchievement, CATEGORIES, ACHIEVEMENT_QUESTIONS } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
@@ -183,17 +184,18 @@ export default function Home() {
   const USNHeader = () => (
     <div className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-[#6B2D8B]/10 px-3 py-2 md:px-6 md:py-3">
       <div className="max-w-4xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="w-8 h-8 md:w-10 md:h-10 bg-[#6B2D8B] rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-xs md:text-sm">USN</span>
-          </div>
-          <div className="text-xs md:text-sm">
+        <div className="flex items-center gap-3 md:gap-4">
+          <Image 
+            src="/usn-logo.jpg" 
+            alt="USN - Universitetet i Sørøst-Norge" 
+            width={140}
+            height={40}
+            className="h-8 md:h-10 w-auto"
+          />
+          <div className="text-xs md:text-sm border-l border-gray-300 pl-3 md:pl-4">
             <div className="font-semibold text-[#1E3A5F]">PRO1000</div>
             <div className="text-[#6B2D8B] text-[10px] md:text-xs">Topprestasjonsmønster</div>
           </div>
-        </div>
-        <div className="text-[10px] md:text-xs text-gray-500 hidden sm:block">
-          Universitetet i Sørøst-Norge
         </div>
       </div>
     </div>
