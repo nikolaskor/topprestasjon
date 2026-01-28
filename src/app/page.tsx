@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { loadProfiles as loadProfilesFromStorage, saveProfile as saveProfileToStorage, subscribeToProfiles } from '@/lib/storage';
+import { loadProfiles as loadProfilesFromStorage, saveProfile as saveProfileToStorage, updateProfile as updateProfileToStorage, subscribeToProfiles } from '@/lib/storage';
 import { Profile, Achievement, TopAchievement, CATEGORIES, ACHIEVEMENT_QUESTIONS } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -20,6 +20,11 @@ export default function Home() {
   const [newAchievement, setNewAchievement] = useState('');
   const [currentTopIndex, setCurrentTopIndex] = useState(0);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editCommonDenominators, setEditCommonDenominators] = useState<string[]>([]);
+  const [editPerformancePattern, setEditPerformancePattern] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Load profiles on mount
   useEffect(() => {
@@ -61,8 +66,35 @@ export default function Home() {
     if (success) {
       localStorage.setItem('topprestasjon_profile_id', profile.id);
       setCurrentProfile(profile);
+      // Refresh profiles immediately so the new profile appears
+      await fetchProfiles();
       setStep('complete');
     }
+  };
+
+  const startEditing = (profile: Profile) => {
+    setEditName(profile.name);
+    setEditCommonDenominators([...profile.commonDenominators, '', '', '', '', ''].slice(0, 5));
+    setEditPerformancePattern([...profile.performancePattern, '', '', '', '', ''].slice(0, 5));
+    setIsEditing(true);
+  };
+
+  const handleUpdateProfile = async (profile: Profile) => {
+    setIsSaving(true);
+    const updatedProfile: Profile = {
+      ...profile,
+      name: editName,
+      commonDenominators: editCommonDenominators.filter(d => d.trim()),
+      performancePattern: editPerformancePattern.filter(p => p.trim()),
+    };
+
+    const success = await updateProfileToStorage(updatedProfile);
+
+    if (success) {
+      await fetchProfiles();
+      setIsEditing(false);
+    }
+    setIsSaving(false);
   };
 
   const addAchievement = () => {
@@ -134,12 +166,17 @@ export default function Home() {
   const getMatchedProfiles = () => {
     const myProfileId = localStorage.getItem('topprestasjon_profile_id');
     const myProfile = profiles.find(p => p.id === myProfileId);
+    
     if (!myProfile) return profiles;
 
-    return profiles
+    // Get other profiles with match scores
+    const otherProfiles = profiles
       .filter(p => p.id !== myProfileId)
-      .map(p => ({ ...p, matchScore: calculateMatchScore(myProfile, p) }))
+      .map(p => ({ ...p, matchScore: calculateMatchScore(myProfile, p), isOwnProfile: false }))
       .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+
+    // Add own profile at the beginning with special flag
+    return [{ ...myProfile, isOwnProfile: true }, ...otherProfiles];
   };
 
   // USN Header component
@@ -580,6 +617,7 @@ export default function Home() {
     const matchedProfiles = getMatchedProfiles();
     const selectedProfile = profiles.find(p => p.id === selectedProfileId);
     const myProfileId = localStorage.getItem('topprestasjon_profile_id');
+    const isOwnProfile = selectedProfile && selectedProfile.id === myProfileId;
 
     if (selectedProfile) {
       return (
@@ -588,7 +626,7 @@ export default function Home() {
           <div className="min-h-screen bg-[#F5F0E8] p-4 pt-20">
             <div className="max-w-2xl mx-auto">
               <button
-                onClick={() => setSelectedProfileId(null)}
+                onClick={() => { setSelectedProfileId(null); setIsEditing(false); }}
                 className="mb-4 text-[#6B2D8B] hover:text-[#8B4DAB] font-medium flex items-center gap-2 transition"
               >
                 <span>←</span> Tilbake til oversikt
@@ -596,18 +634,40 @@ export default function Home() {
               
               <div className="bg-white rounded-2xl p-6 shadow-lg border border-[#E8D8F0]">
                 <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 bg-gradient-to-br from-[#6B2D8B] to-[#FF6B35] rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg ${isOwnProfile ? 'bg-gradient-to-br from-[#FF6B35] to-[#FFB347] ring-4 ring-[#FF6B35]/30' : 'bg-gradient-to-br from-[#6B2D8B] to-[#FF6B35]'}`}>
                     {selectedProfile.name.charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-serif text-[#1E3A5F]">{selectedProfile.name}</h2>
-                    {(selectedProfile as Profile & { matchScore?: number }).matchScore !== undefined && (
+                  <div className="flex-1">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="text-2xl font-serif text-[#1E3A5F] border-2 border-[#E8D8F0] rounded-lg px-2 py-1 w-full focus:border-[#6B2D8B] focus:outline-none"
+                      />
+                    ) : (
+                      <h2 className="text-2xl font-serif text-[#1E3A5F]">{selectedProfile.name}</h2>
+                    )}
+                    {isOwnProfile && !isEditing && (
+                      <span className="inline-flex items-center gap-1 text-[#FF6B35] font-medium bg-[#FF6B35]/10 px-3 py-1 rounded-full text-sm mt-1">
+                        Din profil
+                      </span>
+                    )}
+                    {!isOwnProfile && (selectedProfile as Profile & { matchScore?: number }).matchScore !== undefined && (
                       <span className="inline-flex items-center gap-1 text-[#6B2D8B] font-medium bg-[#E8D8F0] px-3 py-1 rounded-full text-sm mt-1">
                         <span className="w-2 h-2 bg-[#FF6B35] rounded-full"></span>
                         {(selectedProfile as Profile & { matchScore?: number }).matchScore}% match
                       </span>
                     )}
                   </div>
+                  {isOwnProfile && !isEditing && (
+                    <button
+                      onClick={() => startEditing(selectedProfile)}
+                      className="bg-[#6B2D8B] text-white px-4 py-2 rounded-full font-medium hover:bg-[#8B4DAB] transition flex items-center gap-2"
+                    >
+                      ✏️ Rediger
+                    </button>
+                  )}
                 </div>
 
                 <div className="mb-6">
@@ -624,42 +684,108 @@ export default function Home() {
                   </div>
                 </div>
 
-                {selectedProfile.commonDenominators.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="font-bold text-[#1E3A5F] mb-2 font-serif">Fellesnevnere</h3>
-                    <ul className="space-y-1">
-                      {selectedProfile.commonDenominators.map((d, i) => (
-                        <li key={i} className="text-gray-600 flex items-center gap-2">
-                          <span className="text-[#FF6B35]">→</span> {d}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {selectedProfile.performancePattern.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="font-bold text-[#1E3A5F] mb-2 font-serif">Topprestasjonsmønster</h3>
-                    <ul className="space-y-1">
-                      {selectedProfile.performancePattern.map((p, i) => (
-                        <li key={i} className="text-gray-600 flex items-center gap-2">
-                          <span className="text-[#FF6B35]">→</span> {p}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <div>
-                  <h3 className="font-bold text-[#1E3A5F] mb-2 font-serif">Topp 3 prestasjoner</h3>
-                  <div className="space-y-2">
-                    {selectedProfile.topThree.map((t, i) => (
-                      <div key={i} className="p-3 bg-[#F5F0E8] rounded-xl border border-[#E8D8F0]">
-                        <span className="font-medium text-[#1E3A5F]">{i + 1}. {t.title}</span>
+                {isEditing ? (
+                  <>
+                    <div className="mb-6">
+                      <h3 className="font-bold text-[#1E3A5F] mb-2 font-serif">Fellesnevnere</h3>
+                      <div className="space-y-2">
+                        {editCommonDenominators.map((d, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-[#FF6B35]">→</span>
+                            <input
+                              type="text"
+                              value={d}
+                              onChange={(e) => {
+                                const updated = [...editCommonDenominators];
+                                updated[i] = e.target.value;
+                                setEditCommonDenominators(updated);
+                              }}
+                              placeholder={`Fellesnevner ${i + 1}...`}
+                              className="flex-1 p-2 border-2 border-[#E8D8F0] rounded-lg focus:border-[#6B2D8B] focus:outline-none transition"
+                            />
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+
+                    <div className="mb-6">
+                      <h3 className="font-bold text-[#1E3A5F] mb-2 font-serif">Topprestasjonsmønster</h3>
+                      <div className="space-y-2">
+                        {editPerformancePattern.map((p, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-[#FF6B35]">→</span>
+                            <input
+                              type="text"
+                              value={p}
+                              onChange={(e) => {
+                                const updated = [...editPerformancePattern];
+                                updated[i] = e.target.value;
+                                setEditPerformancePattern(updated);
+                              }}
+                              placeholder={`Del av mønsteret...`}
+                              className="flex-1 p-2 border-2 border-[#E8D8F0] rounded-lg focus:border-[#6B2D8B] focus:outline-none transition"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-full font-bold hover:bg-gray-300 transition"
+                      >
+                        Avbryt
+                      </button>
+                      <button
+                        onClick={() => handleUpdateProfile(selectedProfile)}
+                        disabled={isSaving}
+                        className="flex-1 bg-[#FF6B35] text-white py-3 rounded-full font-bold hover:bg-[#FF8255] transition disabled:opacity-50"
+                      >
+                        {isSaving ? 'Lagrer...' : '✓ Lagre endringer'}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {selectedProfile.commonDenominators.length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="font-bold text-[#1E3A5F] mb-2 font-serif">Fellesnevnere</h3>
+                        <ul className="space-y-1">
+                          {selectedProfile.commonDenominators.map((d, i) => (
+                            <li key={i} className="text-gray-600 flex items-center gap-2">
+                              <span className="text-[#FF6B35]">→</span> {d}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {selectedProfile.performancePattern.length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="font-bold text-[#1E3A5F] mb-2 font-serif">Topprestasjonsmønster</h3>
+                        <ul className="space-y-1">
+                          {selectedProfile.performancePattern.map((p, i) => (
+                            <li key={i} className="text-gray-600 flex items-center gap-2">
+                              <span className="text-[#FF6B35]">→</span> {p}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div>
+                      <h3 className="font-bold text-[#1E3A5F] mb-2 font-serif">Topp 3 prestasjoner</h3>
+                      <div className="space-y-2">
+                        {selectedProfile.topThree.map((t, i) => (
+                          <div key={i} className="p-3 bg-[#F5F0E8] rounded-xl border border-[#E8D8F0]">
+                            <span className="font-medium text-[#1E3A5F]">{i + 1}. {t.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -695,36 +821,52 @@ export default function Home() {
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
-                {matchedProfiles.map(profile => (
-                  <button
-                    key={profile.id}
-                    onClick={() => setSelectedProfileId(profile.id)}
-                    className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition text-left border border-[#E8D8F0] hover:border-[#6B2D8B]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-[#6B2D8B] to-[#FF6B35] rounded-full flex items-center justify-center text-white font-bold shadow">
-                        {profile.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-bold text-[#1E3A5F]">{profile.name}</h3>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {[...new Set(profile.achievements.map(a => a.category))].slice(0, 3).map(cat => {
-                            const catInfo = CATEGORIES.find(c => c.id === cat);
-                            return <span key={cat} className="text-lg">{catInfo?.emoji}</span>;
-                          })}
+                {matchedProfiles.map(profile => {
+                  const isOwn = (profile as Profile & { isOwnProfile?: boolean }).isOwnProfile;
+                  return (
+                    <button
+                      key={profile.id}
+                      onClick={() => setSelectedProfileId(profile.id)}
+                      className={`p-4 rounded-xl shadow-sm hover:shadow-md transition text-left ${
+                        isOwn 
+                          ? 'bg-gradient-to-br from-[#FF6B35]/10 to-[#FFB347]/10 border-2 border-[#FF6B35] hover:border-[#FF8255]' 
+                          : 'bg-white border border-[#E8D8F0] hover:border-[#6B2D8B]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow ${
+                          isOwn 
+                            ? 'bg-gradient-to-br from-[#FF6B35] to-[#FFB347]' 
+                            : 'bg-gradient-to-br from-[#6B2D8B] to-[#FF6B35]'
+                        }`}>
+                          {profile.name.charAt(0).toUpperCase()}
                         </div>
-                      </div>
-                      {(profile as Profile & { matchScore?: number }).matchScore !== undefined && (
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-[#6B2D8B]">
-                            {(profile as Profile & { matchScore?: number }).matchScore}%
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-[#1E3A5F]">{profile.name}</h3>
+                            {isOwn && (
+                              <span className="text-xs bg-[#FF6B35] text-white px-2 py-0.5 rounded-full">Du</span>
+                            )}
                           </div>
-                          <div className="text-xs text-gray-500">match</div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {[...new Set(profile.achievements.map(a => a.category))].slice(0, 3).map(cat => {
+                              const catInfo = CATEGORIES.find(c => c.id === cat);
+                              return <span key={cat} className="text-lg">{catInfo?.emoji}</span>;
+                            })}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                        {!isOwn && (profile as Profile & { matchScore?: number }).matchScore !== undefined && (
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-[#6B2D8B]">
+                              {(profile as Profile & { matchScore?: number }).matchScore}%
+                            </div>
+                            <div className="text-xs text-gray-500">match</div>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

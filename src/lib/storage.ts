@@ -59,6 +59,30 @@ export const saveProfile = async (profile: Profile): Promise<boolean> => {
   return !error;
 };
 
+export const updateProfile = async (profile: Profile): Promise<boolean> => {
+  if (!isSupabaseConfigured()) {
+    // Update in localStorage
+    const profiles = getLocalProfiles();
+    const index = profiles.findIndex(p => p.id === profile.id);
+    if (index !== -1) {
+      profiles[index] = profile;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+      return true;
+    }
+    return false;
+  }
+
+  const { error } = await supabase!.from('profiles').update({
+    name: profile.name,
+    achievements: profile.achievements,
+    top_three: profile.topThree,
+    common_denominators: profile.commonDenominators,
+    performance_pattern: profile.performancePattern,
+  }).eq('id', profile.id);
+
+  return !error;
+};
+
 export const subscribeToProfiles = (callback: () => void) => {
   if (!isSupabaseConfigured()) {
     // For localStorage, we use storage events
