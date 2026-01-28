@@ -470,7 +470,7 @@ export default function Home() {
                     <textarea
                       value={currentTop.answers[q.key as keyof typeof currentTop.answers]}
                       onChange={(e) => updateTopAnswer(currentTopIndex, q.key, e.target.value)}
-                      className="w-full p-2.5 md:p-3 border-2 border-[#E8D8F0] rounded-xl focus:border-[#6B2D8B] focus:outline-none resize-none transition text-base"
+                      className="w-full p-2.5 md:p-3 border-2 border-[#E8D8F0] rounded-xl focus:border-[#6B2D8B] focus:outline-none resize-none transition text-base text-gray-900 placeholder:text-gray-400"
                       rows={2}
                     />
                   </div>
