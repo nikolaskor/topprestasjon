@@ -282,7 +282,7 @@ export default function Home() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ditt navn..."
-              className="w-full p-4 border-2 border-[#E8D8F0] rounded-xl text-lg focus:border-[#6B2D8B] focus:outline-none transition"
+              className="w-full p-4 border-2 border-[#E8D8F0] rounded-xl text-lg focus:border-[#6B2D8B] focus:outline-none transition text-gray-900 placeholder:text-gray-400"
               autoFocus
             />
             <button
@@ -338,7 +338,7 @@ export default function Home() {
                   onChange={(e) => setNewAchievement(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addAchievement()}
                   placeholder="Beskriv en prestasjon..."
-                  className="flex-1 p-3 border-2 border-[#E8D8F0] rounded-xl focus:border-[#6B2D8B] focus:outline-none transition"
+                  className="flex-1 p-3 border-2 border-[#E8D8F0] rounded-xl focus:border-[#6B2D8B] focus:outline-none transition text-gray-900 placeholder:text-gray-400"
                 />
                 <button
                   onClick={addAchievement}
@@ -522,7 +522,7 @@ export default function Home() {
                         setCommonDenominators(updated);
                       }}
                       placeholder={`Fellesnevner ${i + 1}...`}
-                      className="flex-1 p-3 border-2 border-[#E8D8F0] rounded-xl focus:border-[#6B2D8B] focus:outline-none transition"
+                      className="flex-1 p-3 border-2 border-[#E8D8F0] rounded-xl focus:border-[#6B2D8B] focus:outline-none transition text-gray-900 placeholder:text-gray-400"
                     />
                   </div>
                 ))}
@@ -569,7 +569,7 @@ export default function Home() {
                         setPerformancePattern(updated);
                       }}
                       placeholder={`Del av mønsteret...`}
-                      className="flex-1 p-3 border-2 border-[#E8D8F0] rounded-xl focus:border-[#6B2D8B] focus:outline-none transition"
+                      className="flex-1 p-3 border-2 border-[#E8D8F0] rounded-xl focus:border-[#6B2D8B] focus:outline-none transition text-gray-900 placeholder:text-gray-400"
                     />
                   </div>
                 ))}
@@ -643,7 +643,7 @@ export default function Home() {
                         type="text"
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="text-2xl font-serif text-[#1E3A5F] border-2 border-[#E8D8F0] rounded-lg px-2 py-1 w-full focus:border-[#6B2D8B] focus:outline-none"
+                        className="text-2xl font-serif text-[#1E3A5F] border-2 border-[#E8D8F0] rounded-lg px-2 py-1 w-full focus:border-[#6B2D8B] focus:outline-none text-gray-900 placeholder:text-gray-400"
                       />
                     ) : (
                       <h2 className="text-2xl font-serif text-[#1E3A5F]">{selectedProfile.name}</h2>
@@ -701,7 +701,7 @@ export default function Home() {
                                 setEditCommonDenominators(updated);
                               }}
                               placeholder={`Fellesnevner ${i + 1}...`}
-                              className="flex-1 p-2 border-2 border-[#E8D8F0] rounded-lg focus:border-[#6B2D8B] focus:outline-none transition"
+                              className="flex-1 p-2 border-2 border-[#E8D8F0] rounded-lg focus:border-[#6B2D8B] focus:outline-none transition text-gray-900 placeholder:text-gray-400"
                             />
                           </div>
                         ))}
@@ -723,7 +723,7 @@ export default function Home() {
                                 setEditPerformancePattern(updated);
                               }}
                               placeholder={`Del av mønsteret...`}
-                              className="flex-1 p-2 border-2 border-[#E8D8F0] rounded-lg focus:border-[#6B2D8B] focus:outline-none transition"
+                              className="flex-1 p-2 border-2 border-[#E8D8F0] rounded-lg focus:border-[#6B2D8B] focus:outline-none transition text-gray-900 placeholder:text-gray-400"
                             />
                           </div>
                         ))}
