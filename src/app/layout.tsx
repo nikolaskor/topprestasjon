@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Ditt Topprestasjonsmønster | PRO1000 USN",
-  description: "Oppdag når du presterer best, og finn teammedlemmer som utfyller deg perfekt.",
+  title: "Topprestasjonsmønster | PRO1000 - Universitetet i Sørøst-Norge",
+  description: "Oppdag når du presterer best, og finn teammedlemmer som utfyller deg perfekt. En øvelse i selvrefleksjon for PRO1000 ved USN.",
+  keywords: ["USN", "PRO1000", "topprestasjon", "teamarbeid", "studentoppgave"],
 };
 
 export default function RootLayout({

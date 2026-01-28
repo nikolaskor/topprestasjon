@@ -1,26 +1,88 @@
 @import "tailwindcss";
 
 :root {
+  /* USN Brand Colors */
+  --usn-lilla: #6B2D8B;          /* Primary purple */
+  --usn-medium-lilla: #8B4DAB;   /* Medium purple */
+  --usn-lys-lilla: #E8D8F0;      /* Light purple */
+  --usn-oransje: #FF6B35;        /* Orange accent */
+  --usn-indigo: #1E3A5F;         /* Dark blue */
+  --usn-lys-indigo: #E8EEF4;     /* Light indigo */
+  --usn-beige: #F5F0E8;          /* Warm beige */
+  --usn-syregrønn: #A8E6CF;      /* Acid green accent */
+  --usn-rosa: #FFB8D1;           /* Pink accent */
+  
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1a1a2e;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-usn-lilla: var(--usn-lilla);
+  --color-usn-medium-lilla: var(--usn-medium-lilla);
+  --color-usn-lys-lilla: var(--usn-lys-lilla);
+  --color-usn-oransje: var(--usn-oransje);
+  --color-usn-indigo: var(--usn-indigo);
+  --color-usn-lys-indigo: var(--usn-lys-indigo);
+  --color-usn-beige: var(--usn-beige);
+  --font-sans: 'Arial', 'Helvetica Neue', sans-serif;
+  --font-serif: 'Georgia', 'Times New Roman', serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #1a1a2e;
+    --foreground: #f5f5f5;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Arial', 'Helvetica Neue', sans-serif;
+}
+
+/* USN Typography styles */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-weight: 400;
+}
+
+/* USN Button styles - rounded per brand guidelines */
+.usn-btn {
+  border-radius: 9999px;
+  font-family: 'Arial', 'Helvetica Neue', sans-serif;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.usn-btn-primary {
+  background-color: var(--usn-lilla);
+  color: white;
+}
+
+.usn-btn-primary:hover {
+  background-color: var(--usn-medium-lilla);
+}
+
+.usn-btn-secondary {
+  background-color: var(--usn-oransje);
+  color: white;
+}
+
+/* USN Card style */
+.usn-card {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(107, 45, 139, 0.1), 0 2px 4px -1px rgba(107, 45, 139, 0.06);
+}
+
+/* USN Gradient - combining purple and warm tones */
+.usn-gradient {
+  background: linear-gradient(135deg, var(--usn-indigo) 0%, var(--usn-lilla) 50%, var(--usn-medium-lilla) 100%);
+}
+
+.usn-gradient-warm {
+  background: linear-gradient(135deg, var(--usn-lilla) 0%, var(--usn-medium-lilla) 60%, var(--usn-oransje) 100%);
 }
