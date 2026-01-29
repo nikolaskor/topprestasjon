@@ -30,6 +30,7 @@ export const loadProfiles = async (): Promise<Profile[]> => {
     return data.map(p => ({
       id: p.id,
       name: p.name,
+      groupNumber: p.group_number || '',
       createdAt: p.created_at,
       achievements: p.achievements || [],
       topThree: p.top_three || [],
@@ -46,15 +47,30 @@ export const saveProfile = async (profile: Profile): Promise<boolean> => {
     return true;
   }
 
-  const { error } = await supabase!.from('profiles').insert({
+  // Try with group_number first, fall back without if column doesn't exist yet
+  let { error } = await supabase!.from('profiles').insert({
     id: profile.id,
     name: profile.name,
+    group_number: profile.groupNumber || null,
     created_at: profile.createdAt,
     achievements: profile.achievements,
     top_three: profile.topThree,
     common_denominators: profile.commonDenominators,
     performance_pattern: profile.performancePattern,
   });
+
+  if (error && error.message?.includes('group_number')) {
+    const retry = await supabase!.from('profiles').insert({
+      id: profile.id,
+      name: profile.name,
+      created_at: profile.createdAt,
+      achievements: profile.achievements,
+      top_three: profile.topThree,
+      common_denominators: profile.commonDenominators,
+      performance_pattern: profile.performancePattern,
+    });
+    error = retry.error;
+  }
 
   return !error;
 };
@@ -72,13 +88,26 @@ export const updateProfile = async (profile: Profile): Promise<boolean> => {
     return false;
   }
 
-  const { error } = await supabase!.from('profiles').update({
+  // Try with group_number first, fall back without if column doesn't exist yet
+  let { error } = await supabase!.from('profiles').update({
     name: profile.name,
+    group_number: profile.groupNumber || null,
     achievements: profile.achievements,
     top_three: profile.topThree,
     common_denominators: profile.commonDenominators,
     performance_pattern: profile.performancePattern,
   }).eq('id', profile.id);
+
+  if (error && error.message?.includes('group_number')) {
+    const retry = await supabase!.from('profiles').update({
+      name: profile.name,
+      achievements: profile.achievements,
+      top_three: profile.topThree,
+      common_denominators: profile.commonDenominators,
+      performance_pattern: profile.performancePattern,
+    }).eq('id', profile.id);
+    error = retry.error;
+  }
 
   return !error;
 };

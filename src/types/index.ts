@@ -25,6 +25,7 @@ export interface TopAchievement {
 export interface Profile {
   id: string;
   name: string;
+  groupNumber?: string;
   createdAt: string;
   achievements: Achievement[];
   topThree: TopAchievement[];

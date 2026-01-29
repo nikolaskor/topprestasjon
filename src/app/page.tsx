@@ -11,6 +11,7 @@ type Step = 'welcome' | 'name' | 'achievements' | 'top-three' | 'denominators' |
 export default function Home() {
   const [step, setStep] = useState<Step>('welcome');
   const [name, setName] = useState('');
+  const [groupNumber, setGroupNumber] = useState('');
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [topThree, setTopThree] = useState<TopAchievement[]>([]);
   const [commonDenominators, setCommonDenominators] = useState<string[]>(['', '', '', '', '']);
@@ -26,6 +27,8 @@ export default function Home() {
   const [editCommonDenominators, setEditCommonDenominators] = useState<string[]>([]);
   const [editPerformancePattern, setEditPerformancePattern] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [filterGroup, setFilterGroup] = useState<string>('');
+  const [editGroupNumber, setEditGroupNumber] = useState('');
 
   // Load profiles on mount
   useEffect(() => {
@@ -55,6 +58,7 @@ export default function Home() {
     const profile: Profile = {
       id: uuidv4(),
       name,
+      groupNumber: groupNumber.trim() || undefined,
       createdAt: new Date().toISOString(),
       achievements,
       topThree,
@@ -75,6 +79,7 @@ export default function Home() {
 
   const startEditing = (profile: Profile) => {
     setEditName(profile.name);
+    setEditGroupNumber(profile.groupNumber || '');
     setEditCommonDenominators([...profile.commonDenominators, '', '', '', '', ''].slice(0, 5));
     setEditPerformancePattern([...profile.performancePattern, '', '', '', '', ''].slice(0, 5));
     setIsEditing(true);
@@ -85,6 +90,7 @@ export default function Home() {
     const updatedProfile: Profile = {
       ...profile,
       name: editName,
+      groupNumber: editGroupNumber.trim() || undefined,
       commonDenominators: editCommonDenominators.filter(d => d.trim()),
       performancePattern: editPerformancePattern.filter(p => p.trim()),
     };
@@ -140,44 +146,48 @@ export default function Home() {
     setTopThree(updated);
   };
 
-  const calculateMatchScore = (profile1: Profile, profile2: Profile): number => {
-    // Simple matching based on common denominators and patterns
-    let score = 0;
-    const p1Patterns = [...profile1.commonDenominators, ...profile1.performancePattern].map(s => s.toLowerCase());
-    const p2Patterns = [...profile2.commonDenominators, ...profile2.performancePattern].map(s => s.toLowerCase());
-    
-    // Check for complementary categories
-    const p1Categories = new Set(profile1.achievements.map(a => a.category));
-    const p2Categories = new Set(profile2.achievements.map(a => a.category));
-    const differentCategories = [...p1Categories].filter(c => !p2Categories.has(c)).length;
-    score += differentCategories * 10;
-
-    // Check for similar keywords
-    const keywords = ['team', 'alene', 'struktur', 'kreativ', 'deadline', 'planlegging', 'spontan', 'fokus', 'sosial'];
-    keywords.forEach(kw => {
-      const p1Has = p1Patterns.some(p => p.includes(kw));
-      const p2Has = p2Patterns.some(p => p.includes(kw));
-      if (p1Has && p2Has) score += 5;  // Similar
-      if (p1Has !== p2Has) score += 8; // Complementary
-    });
-
-    return Math.min(100, score);
-  };
-
-  const getMatchedProfiles = () => {
+  const getGroupProfiles = () => {
     const myProfileId = localStorage.getItem('topprestasjon_profile_id');
     const myProfile = profiles.find(p => p.id === myProfileId);
     
-    if (!myProfile) return profiles;
+    let result = profiles.map(p => ({
+      ...p,
+      isOwnProfile: p.id === myProfileId,
+    }));
 
-    // Get other profiles with match scores
-    const otherProfiles = profiles
-      .filter(p => p.id !== myProfileId)
-      .map(p => ({ ...p, matchScore: calculateMatchScore(myProfile, p), isOwnProfile: false }))
-      .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+    // Sort: own profile first, then by group number, then by name
+    result.sort((a, b) => {
+      if (a.isOwnProfile) return -1;
+      if (b.isOwnProfile) return 1;
+      const groupA = a.groupNumber || '';
+      const groupB = b.groupNumber || '';
+      if (groupA !== groupB) return groupA.localeCompare(groupB, 'no', { numeric: true });
+      return a.name.localeCompare(b.name, 'no');
+    });
 
-    // Add own profile at the beginning with special flag
-    return [{ ...myProfile, isOwnProfile: true }, ...otherProfiles];
+    return result;
+  };
+
+  const getAvailableGroups = () => {
+    const groups = new Set(profiles.map(p => p.groupNumber).filter(Boolean));
+    return [...groups].sort((a, b) => (a || '').localeCompare(b || '', 'no', { numeric: true }));
+  };
+
+  const getGroupOverview = (groupNum: string) => {
+    const groupProfiles = profiles.filter(p => p.groupNumber === groupNum);
+    
+    // Collect all categories across the group
+    const categoryCount: Record<string, number> = {};
+    groupProfiles.forEach(p => {
+      const cats = new Set(p.achievements.map(a => a.category));
+      cats.forEach(c => { categoryCount[c] = (categoryCount[c] || 0) + 1; });
+    });
+
+    // Collect all denominators and patterns
+    const allDenominators = groupProfiles.flatMap(p => p.commonDenominators);
+    const allPatterns = groupProfiles.flatMap(p => p.performancePattern);
+
+    return { categoryCount, allDenominators, allPatterns, memberCount: groupProfiles.length };
   };
 
   // USN Header component
@@ -221,7 +231,7 @@ export default function Home() {
               Ditt Topprestasjonsmønster
             </h1>
             <p className="text-base md:text-xl mb-6 md:mb-8 text-white/80 px-2">
-              Oppdag når du presterer best, og finn teammedlemmer som utfyller deg perfekt.
+              Oppdag når du presterer best, og forstå hvordan gruppens styrker utfyller hverandre.
             </p>
             
             <div className="bg-white/10 backdrop-blur rounded-xl md:rounded-2xl p-4 md:p-6 mb-6 md:mb-8 text-left border border-white/20">
@@ -241,7 +251,7 @@ export default function Home() {
                 </li>
                 <li className="flex items-start gap-2 md:gap-3">
                   <span className="flex-shrink-0 w-6 h-6 md:w-7 md:h-7 bg-[#FF6B35] rounded-full flex items-center justify-center text-xs md:text-sm font-bold">4</span>
-                  <span>Matcher med andre studenter for gruppedannelse!</span>
+                  <span>Del med gruppen din og se hvordan dere utfyller hverandre!</span>
                 </li>
               </ol>
             </div>
@@ -257,7 +267,7 @@ export default function Home() {
                 onClick={() => setStep('browse')}
                 className="bg-white/20 text-white px-6 py-3.5 md:px-8 md:py-4 rounded-full font-bold text-base md:text-lg hover:bg-white/30 transition border border-white/30 min-h-[48px]"
               >
-                Se profiler
+                Se gruppeoversikt
               </button>
             </div>
           </div>
@@ -287,6 +297,17 @@ export default function Home() {
               className="w-full p-3.5 md:p-4 border-2 border-[#E8D8F0] rounded-xl text-base md:text-lg focus:border-[#6B2D8B] focus:outline-none transition text-gray-900 placeholder:text-gray-400 min-h-[48px]"
               autoFocus
             />
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-[#1E3A5F] mb-1.5">Din SYS1000-gruppe</label>
+              <input
+                type="text"
+                value={groupNumber}
+                onChange={(e) => setGroupNumber(e.target.value)}
+                placeholder="F.eks. 1, 2, 3..."
+                className="w-full p-3.5 md:p-4 border-2 border-[#E8D8F0] rounded-xl text-base md:text-lg focus:border-[#6B2D8B] focus:outline-none transition text-gray-900 placeholder:text-gray-400 min-h-[48px]"
+              />
+              <p className="text-xs text-gray-400 mt-1">Skriv inn gruppenummeret ditt fra SYS1000</p>
+            </div>
             <button
               onClick={() => name.trim() && setStep('achievements')}
               disabled={!name.trim()}
@@ -601,13 +622,13 @@ export default function Home() {
             </div>
             <h1 className="text-2xl md:text-3xl font-serif mb-3 md:mb-4">Profilen din er lagret!</h1>
             <p className="text-white/80 mb-6 md:mb-8 text-sm md:text-base px-4">
-              Nå kan du se andres profiler og finne potensielle teammedlemmer.
+              Nå kan du se gruppens profiler og forstå hvordan dere utfyller hverandre.
             </p>
             <button
               onClick={() => setStep('browse')}
               className="bg-white text-[#6B2D8B] px-6 py-3.5 md:px-8 md:py-4 rounded-full font-bold text-base md:text-lg hover:bg-[#E8D8F0] transition shadow-lg min-h-[48px]"
             >
-              Se alle profiler →
+              Se gruppeoversikt →
             </button>
           </div>
         </div>
@@ -616,10 +637,16 @@ export default function Home() {
   }
 
   if (step === 'browse') {
-    const matchedProfiles = getMatchedProfiles();
+    const groupedProfiles = getGroupProfiles();
+    const availableGroups = getAvailableGroups();
     const selectedProfile = profiles.find(p => p.id === selectedProfileId);
     const myProfileId = localStorage.getItem('topprestasjon_profile_id');
     const isOwnProfile = selectedProfile && selectedProfile.id === myProfileId;
+
+    // Filter profiles by group if selected
+    const filteredProfiles = filterGroup
+      ? groupedProfiles.filter(p => p.groupNumber === filterGroup)
+      : groupedProfiles;
 
     if (selectedProfile) {
       return (
@@ -651,17 +678,18 @@ export default function Home() {
                       ) : (
                         <h2 className="text-xl md:text-2xl font-serif text-[#1E3A5F] break-words">{selectedProfile.name}</h2>
                       )}
-                      {isOwnProfile && !isEditing && (
-                        <span className="inline-flex items-center gap-1 text-[#FF6B35] font-medium bg-[#FF6B35]/10 px-2.5 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-sm mt-1">
-                          Din profil
-                        </span>
-                      )}
-                      {!isOwnProfile && (selectedProfile as Profile & { matchScore?: number }).matchScore !== undefined && (
-                        <span className="inline-flex items-center gap-1 text-[#6B2D8B] font-medium bg-[#E8D8F0] px-2.5 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-sm mt-1">
-                          <span className="w-1.5 h-1.5 md:w-2 md:h-2 bg-[#FF6B35] rounded-full"></span>
-                          {(selectedProfile as Profile & { matchScore?: number }).matchScore}% match
-                        </span>
-                      )}
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {isOwnProfile && !isEditing && (
+                          <span className="inline-flex items-center gap-1 text-[#FF6B35] font-medium bg-[#FF6B35]/10 px-2.5 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-sm">
+                            Din profil
+                          </span>
+                        )}
+                        {selectedProfile.groupNumber && !isEditing && (
+                          <span className="inline-flex items-center gap-1 text-[#6B2D8B] font-medium bg-[#E8D8F0] px-2.5 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-sm">
+                            👥 Gruppe {selectedProfile.groupNumber}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   {isOwnProfile && !isEditing && (
@@ -690,6 +718,17 @@ export default function Home() {
 
                 {isEditing ? (
                   <>
+                    <div className="mb-4 md:mb-6">
+                      <h3 className="font-bold text-[#1E3A5F] mb-2 font-serif text-sm md:text-base">SYS1000-gruppe</h3>
+                      <input
+                        type="text"
+                        value={editGroupNumber}
+                        onChange={(e) => setEditGroupNumber(e.target.value)}
+                        placeholder="Gruppenummer..."
+                        className="w-full p-2.5 md:p-2 border-2 border-[#E8D8F0] rounded-lg focus:border-[#6B2D8B] focus:outline-none transition text-gray-900 placeholder:text-gray-400 text-base min-h-[44px]"
+                      />
+                    </div>
+
                     <div className="mb-4 md:mb-6">
                       <h3 className="font-bold text-[#1E3A5F] mb-2 font-serif text-sm md:text-base">Fellesnevnere</h3>
                       <div className="space-y-2">
@@ -797,6 +836,10 @@ export default function Home() {
       );
     }
 
+    // Group overview card when filtering by a specific group
+    const showGroupOverview = filterGroup && availableGroups.includes(filterGroup);
+    const groupOverview = showGroupOverview ? getGroupOverview(filterGroup) : null;
+
     return (
       <>
         <USNHeader />
@@ -804,8 +847,8 @@ export default function Home() {
           <div className="max-w-4xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 md:mb-6">
               <div>
-                <h1 className="text-xl md:text-2xl font-serif text-[#1E3A5F]">Alle profiler</h1>
-                <p className="text-gray-500 text-xs md:text-sm">Finn teammedlemmer som utfyller deg</p>
+                <h1 className="text-xl md:text-2xl font-serif text-[#1E3A5F]">Gruppeoversikt</h1>
+                <p className="text-gray-500 text-xs md:text-sm">Se hvordan gruppens styrker utfyller hverandre</p>
               </div>
               {!myProfileId && (
                 <button
@@ -817,16 +860,89 @@ export default function Home() {
               )}
             </div>
 
+            {/* Group filter */}
+            {availableGroups.length > 0 && (
+              <div className="mb-4 md:mb-6">
+                <div className="flex flex-wrap gap-1.5 md:gap-2">
+                  <button
+                    onClick={() => setFilterGroup('')}
+                    className={`px-3 py-1.5 md:px-4 md:py-2 rounded-full transition font-medium text-sm md:text-base min-h-[36px] ${
+                      !filterGroup
+                        ? 'bg-[#6B2D8B] text-white'
+                        : 'bg-white text-[#6B2D8B] border border-[#E8D8F0] hover:bg-[#E8D8F0]'
+                    }`}
+                  >
+                    Alle
+                  </button>
+                  {availableGroups.map(g => (
+                    <button
+                      key={g}
+                      onClick={() => setFilterGroup(g!)}
+                      className={`px-3 py-1.5 md:px-4 md:py-2 rounded-full transition font-medium text-sm md:text-base min-h-[36px] ${
+                        filterGroup === g
+                          ? 'bg-[#6B2D8B] text-white'
+                          : 'bg-white text-[#6B2D8B] border border-[#E8D8F0] hover:bg-[#E8D8F0]'
+                      }`}
+                    >
+                      Gruppe {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Group overview card */}
+            {showGroupOverview && groupOverview && groupOverview.memberCount > 0 && (
+              <div className="bg-gradient-to-br from-[#6B2D8B] to-[#8B4DAB] rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg mb-4 md:mb-6 text-white">
+                <h2 className="text-lg md:text-xl font-serif mb-3 md:mb-4 flex items-center gap-2">
+                  👥 Gruppe {filterGroup} — Styrker og mønster
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white/80 mb-2">Kategorier i gruppen</h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(groupOverview.categoryCount)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([cat, count]) => {
+                          const catInfo = CATEGORIES.find(c => c.id === cat);
+                          return (
+                            <span key={cat} className="px-2.5 py-1 bg-white/20 rounded-full text-xs md:text-sm">
+                              {catInfo?.emoji} {catInfo?.label} ({count})
+                            </span>
+                          );
+                        })}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white/80 mb-2">Fellesnevnere i gruppen</h3>
+                    <div className="space-y-1">
+                      {groupOverview.allDenominators.slice(0, 6).map((d, i) => (
+                        <div key={i} className="text-xs md:text-sm text-white/90 flex items-start gap-1.5">
+                          <span className="text-[#FFB347] flex-shrink-0">→</span> {d}
+                        </div>
+                      ))}
+                      {groupOverview.allDenominators.length === 0 && (
+                        <p className="text-xs text-white/60">Ingen fellesnevnere lagt inn ennå</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-white/20 text-xs md:text-sm text-white/70">
+                  {groupOverview.memberCount} {groupOverview.memberCount === 1 ? 'medlem' : 'medlemmer'} har delt profilen sin
+                </div>
+              </div>
+            )}
+
             {profiles.length === 0 ? (
               <div className="bg-white rounded-xl md:rounded-2xl p-8 md:p-12 text-center text-gray-500 border border-[#E8D8F0]">
                 <div className="text-4xl md:text-5xl mb-3 md:mb-4">👥</div>
                 <p className="text-lg md:text-xl mb-2 font-serif text-[#1E3A5F]">Ingen profiler ennå</p>
-                <p className="text-gray-400 text-sm md:text-base">Vær den første til å opprette en!</p>
+                <p className="text-gray-400 text-sm md:text-base">Vær den første til å dele din profil med gruppen!</p>
               </div>
             ) : (
               <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-                {matchedProfiles.map(profile => {
-                  const isOwn = (profile as Profile & { isOwnProfile?: boolean }).isOwnProfile;
+                {filteredProfiles.map(profile => {
+                  const isOwn = profile.isOwnProfile;
                   return (
                     <button
                       key={profile.id}
@@ -851,6 +967,9 @@ export default function Home() {
                             {isOwn && (
                               <span className="text-[10px] md:text-xs bg-[#FF6B35] text-white px-1.5 py-0.5 md:px-2 rounded-full flex-shrink-0">Du</span>
                             )}
+                            {profile.groupNumber && (
+                              <span className="text-[10px] md:text-xs bg-[#E8D8F0] text-[#6B2D8B] px-1.5 py-0.5 md:px-2 rounded-full flex-shrink-0">Gr. {profile.groupNumber}</span>
+                            )}
                           </div>
                           <div className="flex flex-wrap gap-0.5 md:gap-1 mt-1">
                             {[...new Set(profile.achievements.map(a => a.category))].slice(0, 3).map(cat => {
@@ -859,14 +978,6 @@ export default function Home() {
                             })}
                           </div>
                         </div>
-                        {!isOwn && (profile as Profile & { matchScore?: number }).matchScore !== undefined && (
-                          <div className="text-right flex-shrink-0">
-                            <div className="text-xl md:text-2xl font-bold text-[#6B2D8B]">
-                              {(profile as Profile & { matchScore?: number }).matchScore}%
-                            </div>
-                            <div className="text-[10px] md:text-xs text-gray-500">match</div>
-                          </div>
-                        )}
                       </div>
                     </button>
                   );
