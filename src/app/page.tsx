@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { loadProfiles as loadProfilesFromStorage, saveProfile as saveProfileToStorage, updateProfile as updateProfileToStorage, subscribeToProfiles } from '@/lib/storage';
+import { loadProfiles as loadProfilesFromStorage, saveProfile as saveProfileToStorage, updateProfile as updateProfileToStorage, deleteProfile as deleteProfileFromStorage, subscribeToProfiles } from '@/lib/storage';
 import { Profile, Achievement, TopAchievement, CATEGORIES, ACHIEVEMENT_QUESTIONS } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -29,6 +29,8 @@ export default function Home() {
   const [isSaving, setIsSaving] = useState(false);
   const [filterGroup, setFilterGroup] = useState<string>('');
   const [editGroupNumber, setEditGroupNumber] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Load profiles on mount
   useEffect(() => {
@@ -102,6 +104,21 @@ export default function Home() {
       setIsEditing(false);
     }
     setIsSaving(false);
+  };
+
+  const handleDeleteProfile = async (profileId: string) => {
+    setIsDeleting(true);
+    const success = await deleteProfileFromStorage(profileId);
+    if (success) {
+      localStorage.removeItem('topprestasjon_profile_id');
+      setCurrentProfile(null);
+      setSelectedProfileId(null);
+      setShowDeleteConfirm(false);
+      setIsEditing(false);
+      await fetchProfiles();
+      setStep('welcome');
+    }
+    setIsDeleting(false);
   };
 
   const addAchievement = () => {
@@ -827,6 +844,41 @@ export default function Home() {
                         ))}
                       </div>
                     </div>
+
+                    {isOwnProfile && (
+                      <div className="mt-6 md:mt-8 pt-4 md:pt-6 border-t border-[#E8D8F0]">
+                        {!showDeleteConfirm ? (
+                          <button
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="w-full text-red-500 hover:text-red-700 hover:bg-red-50 py-3 rounded-xl font-medium transition text-sm md:text-base min-h-[48px] border border-red-200 hover:border-red-300"
+                          >
+                            🗑️ Slett profil
+                          </button>
+                        ) : (
+                          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                            <p className="text-red-700 font-medium text-sm md:text-base mb-3">
+                              Er du sikker? Dette kan ikke angres.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <button
+                                onClick={() => setShowDeleteConfirm(false)}
+                                disabled={isDeleting}
+                                className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-full font-bold hover:bg-gray-300 transition min-h-[44px] text-sm md:text-base"
+                              >
+                                Avbryt
+                              </button>
+                              <button
+                                onClick={() => handleDeleteProfile(selectedProfile.id)}
+                                disabled={isDeleting}
+                                className="flex-1 bg-red-600 text-white py-2.5 rounded-full font-bold hover:bg-red-700 transition disabled:opacity-50 min-h-[44px] text-sm md:text-base"
+                              >
+                                {isDeleting ? 'Sletter...' : 'Ja, slett profilen min'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>

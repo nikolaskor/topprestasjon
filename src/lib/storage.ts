@@ -112,6 +112,18 @@ export const updateProfile = async (profile: Profile): Promise<boolean> => {
   return !error;
 };
 
+export const deleteProfile = async (profileId: string): Promise<boolean> => {
+  if (!isSupabaseConfigured()) {
+    const profiles = getLocalProfiles();
+    const filtered = profiles.filter(p => p.id !== profileId);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    return true;
+  }
+
+  const { error } = await supabase!.from('profiles').delete().eq('id', profileId);
+  return !error;
+};
+
 export const subscribeToProfiles = (callback: () => void) => {
   if (!isSupabaseConfigured()) {
     // For localStorage, we use storage events
